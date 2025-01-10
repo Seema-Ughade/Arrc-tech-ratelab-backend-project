@@ -95,3 +95,81 @@ exports.deleteAllReviews = async (req, res) => {
   }
 };
 
+exports.getAllReviewsbyId = async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const reviews = await Review.find({ company: companyId }).populate('user', 'username').sort({ createdAt: -1 });
+    res.json(reviews);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+async function updateCompanyRating(companyId) {
+  const reviews = await Review.find({ company: companyId });
+  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+  await Company.findByIdAndUpdate(companyId, { rating: averageRating });
+}
+
+
+
+
+exports.createReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const companyId = req.params.id;
+    const userId = req.user.id; // Assuming you have user info in req.user after authentication
+
+    const newReview = new Review({
+      user: userId,
+      company: companyId,
+      rating,
+      comment
+    });
+
+    const savedReview = await newReview.save();
+
+    // Update company's average rating
+    await updateCompanyRating(companyId);
+
+    const populatedReview = await Review.findById(savedReview._id).populate('user', 'username');
+    res.status(201).json(populatedReview);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.deleteReview = async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Check if the user is authorized to delete this review
+    if (review.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to delete this review' });
+    }
+
+    await Review.findByIdAndDelete(req.params.id);
+
+    // Update company's average rating
+    await updateCompanyRating(review.company);
+
+    res.json({ message: 'Review deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+async function updateCompanyRating(companyId) {
+  const reviews = await Review.find({ company: companyId });
+  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+  await Company.findByIdAndUpdate(companyId, { rating: averageRating });
+}
+
