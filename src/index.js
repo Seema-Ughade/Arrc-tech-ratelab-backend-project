@@ -8,6 +8,7 @@ const categoryRoutes = require('../routes/categoryRoutes')
 const advertisementRoutes = require('../routes/advertisementRoutes');
 const contactRoutes = require('../routes/contactRoutes');
 const companyRoutes = require('../routes/companyRoutes');
+const blogroutes = require('../routes/blogroutes');
 
 
 const dotenv = require('dotenv');
@@ -35,6 +36,7 @@ app.use('/api/categories', categoryRoutes)
 app.use('/api/advertisements', advertisementRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/posts', blogroutes);
 
 app.listen(port, hostname, () => {
     console.log(`Server running at http://${hostname}:${port}`);

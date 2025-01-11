@@ -25,6 +25,7 @@ router.delete('/:id', reviewController.deleteReview);
 router.delete('/', reviewController.deleteAllReviews);
 router.post('/:id',  reviewController.createReview);
 router.delete('/:id',  reviewController.deleteReview);
+router.put('/:id',  reviewController.updateReview);
 
 
 module.exports = router;

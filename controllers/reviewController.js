@@ -164,6 +164,19 @@ exports.deleteReview = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.updateReview = async (req, res) => {
+  try {
+    const updatedReview = await Review.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updatedReview) return res.status(404).json({ message: 'Review not found' });
+    
+    await updateCompanyRating(updatedReview.company);
+    
+    res.json(updatedReview);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 
 async function updateCompanyRating(companyId) {
   const reviews = await Review.find({ company: companyId });
