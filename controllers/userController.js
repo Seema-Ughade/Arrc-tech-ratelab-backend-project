@@ -2,8 +2,6 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sendEmail } = require('../utils/sendEmail');
-const admin = require('../config/firebase-config');
-const { sendSMS } = require('../utils/smsService');
 
 exports.register = async (req, res) => {
   try {
@@ -89,94 +87,33 @@ exports.login = async (req, res) => {
 
 
 
+
   exports.sendMobileVerification = async (req, res) => {
+    const { userId } = req.params;
+    const { mobile } = req.body;
     try {
-      const user = await User.findById(req.params.id);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      const mobile = `+91${user.mobile}`; // Assuming Indian phone numbers
-  
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  
-      // Create a custom token with Firebase Admin SDK
-      const customToken = await admin.auth().createCustomToken(user._id.toString(), {
-        mobile: mobile,
-        verificationCode: verificationCode
-      });
-  
-      // Send SMS with the verification code
-      const smsBody = `Your verification code is: ${verificationCode}`;
-      await sendSMS(phoneNumber, smsBody);
-  
-      res.json({ success: true, customToken });
-    } catch (error) {
-      console.error('Error in sendMobileVerification:', error);
-      res.status(500).json({ message: error.message });
-    }
-  };
-  
-  exports.verifyMobile = async (req, res) => {
-    try {
-      const user = await User.findById(req.params.id);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      const { verificationCode, customToken } = req.body;
-      const phoneNumber = `+91${user.mobile}`; // Assuming Indian phone numbers
-  
-      try {
-        // Verify the custom token
-        const decodedToken = await admin.auth().verifyIdToken(customToken);
-        
-        if (decodedToken.uid !== user._id.toString() || 
-            decodedToken.phoneNumber !== phoneNumber || 
-            decodedToken.verificationCode !== verificationCode) {
-          throw new Error('Invalid verification');
-        }
-  
-        user.mobileVerified = true;
-        await user.save();
-        res.json({ success: true, message: 'Mobile number verified successfully' });
-      } catch (firebaseError) {
-        console.error('Firebase verification error:', firebaseError);
-        res.status(400).json({ success: false, message: 'Invalid verification code or token' });
-      }
-    } catch (error) {
-      console.error('Error in verifyMobile:', error);
-      res.status(500).json({ message: error.message });
-    }
-  };
-  
-  
-  // exports.sendMobileVerification = async (req, res) => {
-  //   const { userId } = req.params;
-  //   const { mobile } = req.body;
-  //   try {
-  //     const user = await User.findById(userId);
+      const user = await User.findById(userId);
       
-  //     if (!user) {
-  //       return res.status(404).json({ message: 'User not found' });
-  //     }
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
   
-  //     const verificationCode = Math.floor(100000 + Math.random() * 900000);
-  //     user.mobileVerificationCode = await bcrypt.hash(verificationCode.toString(), 10);
-  //     user.mobileVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  //     user.mobile = mobile;
-  //     await user.save();
+      const verificationCode = Math.floor(100000 + Math.random() * 900000);
+      user.mobileVerificationCode = await bcrypt.hash(verificationCode.toString(), 10);
+      user.mobileVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      user.mobile = mobile;
+      await user.save();
   
-  //     // Here, you would typically send an SMS with the verification code
-  //     // For this example, we'll just log it to the console
-  //     console.log(`Verification code for ${mobile}: ${verificationCode}`);
+      // Here, you would typically send an SMS with the verification code
+      // For this example, we'll just log it to the console
+      console.log(`Verification code for ${mobile}: ${verificationCode}`);
   
-  //     res.json({ success: true, message: 'Verification code sent successfully' });
-  //   } catch (error) {
-  //     console.error('Error sending verification code:', error);
-  //     res.status(500).json({ message: 'Error sending verification code', error: error.message });
-  //   }
-  // };
+      res.json({ success: true, message: 'Verification code sent successfully' });
+    } catch (error) {
+      console.error('Error sending verification code:', error);
+      res.status(500).json({ message: 'Error sending verification code', error: error.message });
+    }
+  };
   
   // exports.verifyMobile = async (req, res) => {
   //   const { userId } = req.params;
@@ -211,35 +148,35 @@ exports.login = async (req, res) => {
   // };
   
 
-//   exports.verifyMobile = async (req, res) => {
-//     const { userId } = req.params;
-//     const { code } = req.body;
+  exports.verifyMobile = async (req, res) => {
+    const { userId } = req.params;
+    const { code } = req.body;
 
-//     try {
-//         const user = await User.findById(userId);
-//         if (!user) {
-//             return res.status(404).json({ message: 'User not found' });
-//         }
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-//         if (!user.mobileVerificationCode || user.mobileVerificationCode !== code) {
-//             return res.status(400).json({ message: 'Invalid or missing verification code' });
-//         }
+        if (!user.mobileVerificationCode || user.mobileVerificationCode !== code) {
+            return res.status(400).json({ message: 'Invalid or missing verification code' });
+        }
 
-//         if (new Date() > new Date(user.mobileVerificationExpires)) {
-//             return res.status(400).json({ message: 'Verification code has expired' });
-//         }
+        if (new Date() > new Date(user.mobileVerificationExpires)) {
+            return res.status(400).json({ message: 'Verification code has expired' });
+        }
 
-//         // Mark the mobile number as verified
-//         user.mobileVerified = true;
-//         user.mobileVerificationCode = '';
-//         user.mobileVerificationExpires = null;
-//         await user.save();
+        // Mark the mobile number as verified
+        user.mobileVerified = true;
+        user.mobileVerificationCode = '';
+        user.mobileVerificationExpires = null;
+        await user.save();
 
-//         res.status(200).json({ message: 'Mobile verified successfully' });
-//     } catch (error) {
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
+        res.status(200).json({ message: 'Mobile verified successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
   
 
 
