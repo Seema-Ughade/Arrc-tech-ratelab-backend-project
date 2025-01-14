@@ -1,6 +1,9 @@
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { sendEmail } = require('../utils/sendEmail');
+const admin = require('../config/firebase-config');
+const { sendSMS } = require('../utils/smsService');
 
 exports.register = async (req, res) => {
   try {
@@ -86,67 +89,158 @@ exports.login = async (req, res) => {
 
 
 
+  exports.sendMobileVerification = async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      const mobile = `+91${user.mobile}`; // Assuming Indian phone numbers
+  
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  
+      // Create a custom token with Firebase Admin SDK
+      const customToken = await admin.auth().createCustomToken(user._id.toString(), {
+        mobile: mobile,
+        verificationCode: verificationCode
+      });
+  
+      // Send SMS with the verification code
+      const smsBody = `Your verification code is: ${verificationCode}`;
+      await sendSMS(phoneNumber, smsBody);
+  
+      res.json({ success: true, customToken });
+    } catch (error) {
+      console.error('Error in sendMobileVerification:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+  
+  exports.verifyMobile = async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      const { verificationCode, customToken } = req.body;
+      const phoneNumber = `+91${user.mobile}`; // Assuming Indian phone numbers
+  
+      try {
+        // Verify the custom token
+        const decodedToken = await admin.auth().verifyIdToken(customToken);
+        
+        if (decodedToken.uid !== user._id.toString() || 
+            decodedToken.phoneNumber !== phoneNumber || 
+            decodedToken.verificationCode !== verificationCode) {
+          throw new Error('Invalid verification');
+        }
+  
+        user.mobileVerified = true;
+        await user.save();
+        res.json({ success: true, message: 'Mobile number verified successfully' });
+      } catch (firebaseError) {
+        console.error('Firebase verification error:', firebaseError);
+        res.status(400).json({ success: false, message: 'Invalid verification code or token' });
+      }
+    } catch (error) {
+      console.error('Error in verifyMobile:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+  
+  
+  // exports.sendMobileVerification = async (req, res) => {
+  //   const { userId } = req.params;
+  //   const { mobile } = req.body;
+  //   try {
+  //     const user = await User.findById(userId);
+      
+  //     if (!user) {
+  //       return res.status(404).json({ message: 'User not found' });
+  //     }
+  
+  //     const verificationCode = Math.floor(100000 + Math.random() * 900000);
+  //     user.mobileVerificationCode = await bcrypt.hash(verificationCode.toString(), 10);
+  //     user.mobileVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  //     user.mobile = mobile;
+  //     await user.save();
+  
+  //     // Here, you would typically send an SMS with the verification code
+  //     // For this example, we'll just log it to the console
+  //     console.log(`Verification code for ${mobile}: ${verificationCode}`);
+  
+  //     res.json({ success: true, message: 'Verification code sent successfully' });
+  //   } catch (error) {
+  //     console.error('Error sending verification code:', error);
+  //     res.status(500).json({ message: 'Error sending verification code', error: error.message });
+  //   }
+  // };
+  
+  // exports.verifyMobile = async (req, res) => {
+  //   const { userId } = req.params;
+  //   const { verificationCode } = req.body;
+  //   try {
+  //     const user = await User.findById(userId);
+      
+  //     if (!user) {
+  //       return res.status(404).json({ message: 'User not found' });
+  //     }
+  
+  //     if (user.mobileVerificationExpires < Date.now()) {
+  //       return res.status(400).json({ message: 'Verification code has expired' });
+  //     }
+  
+  //     const isValid = await bcrypt.compare(verificationCode, user.mobileVerificationCode);
+  
+  //     if (!isValid) {
+  //       return res.status(400).json({ message: 'Invalid verification code' });
+  //     }
+  
+  //     user.mobileVerified = true;
+  //     user.mobileVerificationCode = undefined;
+  //     user.mobileVerificationExpires = undefined;
+  //     await user.save();
+  
+  //     res.json({ success: true, message: 'Mobile number verified successfully' });
+  //   } catch (error) {
+  //     console.error('Error verifying mobile number:', error);
+  //     res.status(500).json({ message: 'Error verifying mobile number', error: error.message });
+  //   }
+  // };
+  
 
+//   exports.verifyMobile = async (req, res) => {
+//     const { userId } = req.params;
+//     const { code } = req.body;
 
+//     try {
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
 
+//         if (!user.mobileVerificationCode || user.mobileVerificationCode !== code) {
+//             return res.status(400).json({ message: 'Invalid or missing verification code' });
+//         }
 
+//         if (new Date() > new Date(user.mobileVerificationExpires)) {
+//             return res.status(400).json({ message: 'Verification code has expired' });
+//         }
 
+//         // Mark the mobile number as verified
+//         user.mobileVerified = true;
+//         user.mobileVerificationCode = '';
+//         user.mobileVerificationExpires = null;
+//         await user.save();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//         res.status(200).json({ message: 'Mobile verified successfully' });
+//     } catch (error) {
+//         res.status(500).json({ message: 'Internal server error' });
+//     }
+// };
+  
 
 
 // GET all users
@@ -224,3 +318,98 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ error: 'An error occurred while deleting the user' });
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.sendEmailVerification = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+
+    await sendEmail(
+      user.email,
+      'Verify your email',
+      `Click <a href="${verificationLink}">here</a> to verify your email.`
+    );
+
+    res.json({ message: 'Verification email sent' });
+  } catch (error) {
+    console.error('Error in sendEmailVerification:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.verifyEmail = async (req, res) => {
+  try {
+    const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
+    const user = await User.findByIdAndUpdate(decoded.id, { emailVerified: true }, { new: true });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Email verified successfully', user });
+  } catch (error) {
+    console.error('Error in verifyEmail:', error);
+    res.status(400).json({ message: 'Invalid or expired token' });
+  }
+};
+
+
+// exports.verifyMobile = async (req, res) => {
+//   try {
+//     const user = await User.findByIdAndUpdate(req.params.id, { mobileVerified: true }, { new: true });
+//     res.json(user);
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// };
+
+
+
+

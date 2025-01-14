@@ -37,6 +37,7 @@ router.delete('/',  companyController.deleteAllCompanies);
 
 // Get companies by user ID
 router.get('/user/:userId',  companyController.getCompaniesByUserId);
-
+router.post('/:id/approval', companyController.approveCompany);
+router.post('/:id/rejection', companyController.rejectCompany);
 module.exports = router;
 

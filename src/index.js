@@ -1,5 +1,6 @@
 const express = require('express');
 const { dbConnect } = require('../config/dbConnection');
+const { transporter, emailFrom } = require('../utils/sendEmail');
 
 const userRoutes = require('../routes/userRoutes');
 const adminRoutes = require('../routes/adminRoutes');
@@ -13,7 +14,7 @@ const blogroutes = require('../routes/blogroutes');
 
 const dotenv = require('dotenv');
 const cors = require('cors');
-
+const nodemailer = require('nodemailer');
 dotenv.config();
 
 const port = process.env.PORT || 4000;
@@ -28,6 +29,28 @@ dbConnect();
 app.use(cors());
 
 app.use(express.json());
+
+// Email service configuration
+// const transporter = nodemailer.createTransport({
+//     host: process.env.SMTP_HOST,
+//     port: process.env.SMTP_PORT,
+//     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
+//     auth: {
+//       user: process.env.SMTP_USER,
+//       pass: process.env.SMTP_PASS
+//     }
+//   });
+    
+//   // Make transporter available to routes
+//   app.set('emailTransporter', transporter);
+  
+//   // Set static email from address
+//   app.set('emailFrom', 'noreply@yourcompany.com');
+app.set('emailTransporter', transporter);
+
+// Set static email from address
+app.set('emailFrom', emailFrom);
+
 app.use('/api', userRoutes);
 app.use('/api/auth', adminRoutes);
 

@@ -140,7 +140,8 @@ exports.createCompany = async (req, res) => {
       description,
       imageUrl: result.secure_url,
       userId,
-      userName
+      userName,
+      status: 'Pending'
     });
 
     await newCompany.save();
@@ -245,6 +246,87 @@ exports.getCompaniesByUserId = async (req, res) => {
   } catch (error) {
     console.error('Error fetching companies by user ID:', error);
     res.status(500).json({ message: 'Error fetching companies by user ID', error: error.message });
+  }
+};
+
+
+
+
+
+
+exports.approveCompany = async (req, res) => {
+  try {
+    const company = await Company.findByIdAndUpdate(req.params.id, { status: 'Approved' }, { new: true });
+    
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    // Send approval email
+    const transporter = req.app.get('emailTransporter');
+    if (!transporter) {
+      console.error('Email transporter not available');
+      return res.status(500).json({ message: 'Unable to send email, but company status updated' });
+    }
+
+    try {
+      await transporter.sendMail({
+        from: req.app.get('emailFrom'),
+        to: company.email,
+        subject: 'Your company has been approved',
+        text: `Dear ${company.companyName},
+
+Your company has been approved. ${req.body.details}
+
+Best regards,
+Your Platform Team`
+      });
+    } catch (emailError) {
+      console.error('Error sending approval email:', emailError);
+      return res.status(200).json({ message: 'Company approved, but email could not be sent', company });
+    }
+
+    res.json({ message: 'Company approved and email sent', company });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.rejectCompany = async (req, res) => {
+  try {
+    const company = await Company.findByIdAndUpdate(req.params.id, { status: 'Rejected' }, { new: true });
+    
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    // Send rejection email
+    const transporter = req.app.get('emailTransporter');
+    if (!transporter) {
+      console.error('Email transporter not available');
+      return res.status(500).json({ message: 'Unable to send email, but company status updated' });
+    }
+
+    try {
+      await transporter.sendMail({
+        from: req.app.get('emailFrom'),
+        to: company.email,
+        subject: 'Your company application has been rejected',
+        text: `Dear ${company.companyName},
+
+We regret to inform you that your company application has been rejected. ${req.body.details}
+
+Best regards,
+Your Platform Team`
+      });
+    } catch (emailError) {
+      console.error('Error sending rejection email:', emailError);
+      return res.status(200).json({ message: 'Company rejected, but email could not be sent', company });
+    }
+
+    res.json({ message: 'Company rejected and email sent', company });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };
 
