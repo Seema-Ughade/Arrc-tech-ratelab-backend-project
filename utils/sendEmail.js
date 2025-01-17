@@ -34,6 +34,8 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+
+
 // Set static email from address
 const emailFrom = 'noreply@yourcompany.com';
 
