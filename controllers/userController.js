@@ -2,6 +2,7 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sendEmail } = require('../utils/sendEmail');
+const { sendSMS } = require('../utils/smsService'); // Adjust the path based on your project structure
 
 exports.register = async (req, res) => {
   try {
@@ -88,25 +89,60 @@ exports.login = async (req, res) => {
 
 
 
+  // exports.sendMobileVerification = async (req, res) => {
+  //   const { userId } = req.params;
+  //   const { mobile } = req.body;
+  //   try {
+  //     const user = await User.findById(userId);
+      
+  //     if (!user) {
+  //       return res.status(404).json({ message: 'User not found' });
+  //     }
+  
+  //     const verificationCode = Math.floor(100000 + Math.random() * 900000);
+  //     user.mobileVerificationCode = await bcrypt.hash(verificationCode.toString(), 10);
+  //     user.mobileVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  //     user.mobile = mobile;
+  //     await user.save();
+  
+  //     // Here, you would typically send an SMS with the verification code
+  //     // For this example, we'll just log it to the console
+  //     console.log(`Verification code for ${mobile}: ${verificationCode}`);
+  
+  //     res.json({ success: true, message: 'Verification code sent successfully' });
+  //   } catch (error) {
+  //     console.error('Error sending verification code:', error);
+  //     res.status(500).json({ message: 'Error sending verification code', error: error.message });
+  //   }
+  // };
+  
+
   exports.sendMobileVerification = async (req, res) => {
     const { userId } = req.params;
     const { mobile } = req.body;
+  
     try {
+      // Fetch the user from the database
       const user = await User.findById(userId);
-      
+  
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
   
+      // Generate a 6-digit verification code
       const verificationCode = Math.floor(100000 + Math.random() * 900000);
+  
+      // Hash the verification code and set expiration
       user.mobileVerificationCode = await bcrypt.hash(verificationCode.toString(), 10);
       user.mobileVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
       user.mobile = mobile;
+  
+      // Save the updated user
       await user.save();
   
-      // Here, you would typically send an SMS with the verification code
-      // For this example, we'll just log it to the console
-      console.log(`Verification code for ${mobile}: ${verificationCode}`);
+      // Send the SMS with the verification code
+      const messageBody = `Your verification code is: ${verificationCode}`;
+      await sendSMS(mobile, messageBody);
   
       res.json({ success: true, message: 'Verification code sent successfully' });
     } catch (error) {
@@ -300,6 +336,56 @@ exports.updateUser = async (req, res) => {
   }
 };
 
+// exports.sendEmailVerification = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.params.id);
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+
+//     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+//     const verificationLink = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+
+//     await sendEmail(
+//       user.email,
+//       'Verify your email',
+//       `Click <a href="${verificationLink}">here</a> to verify your email.`
+//     );
+
+//     res.json({ message: 'Verification email sent' });
+//   } catch (error) {
+//     console.error('Error in sendEmailVerification:', error);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// exports.verifyEmail = async (req, res) => {
+//   try {
+//     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
+//     const user = await User.findByIdAndUpdate(decoded.id, { emailVerified: true }, { new: true });
+    
+//     if (!user) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     res.json({ message: 'Email verified successfully', user });
+//   } catch (error) {
+//     console.error('Error in verifyEmail:', error);
+//     res.status(400).json({ message: 'Invalid or expired token' });
+//   }
+// };
+
+
+// exports.verifyMobile = async (req, res) => {
+//   try {
+//     const user = await User.findByIdAndUpdate(req.params.id, { mobileVerified: true }, { new: true });
+//     res.json(user);
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// };
+
+
+
+
 exports.sendEmailVerification = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -336,17 +422,3 @@ exports.verifyEmail = async (req, res) => {
     res.status(400).json({ message: 'Invalid or expired token' });
   }
 };
-
-
-// exports.verifyMobile = async (req, res) => {
-//   try {
-//     const user = await User.findByIdAndUpdate(req.params.id, { mobileVerified: true }, { new: true });
-//     res.json(user);
-//   } catch (error) {
-//     res.status(400).json({ message: error.message });
-//   }
-// };
-
-
-
-

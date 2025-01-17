@@ -56,6 +56,6 @@ const sendEmail = async (to, subject, html) => {
 module.exports = {
   transporter,
   emailFrom,
-  sendEmail
+  sendEmail,
 };
 

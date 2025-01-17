@@ -111,6 +111,7 @@
 const Company = require('../models/Company');
 const cloudinary = require('../config/cloudinaryConfig');
 const getDataUri = require('../utils/dataUri');
+const { sendMail, emailFrom } = require('../utils/sendEmail');
 
 // Create a new company
 exports.createCompany = async (req, res) => {
