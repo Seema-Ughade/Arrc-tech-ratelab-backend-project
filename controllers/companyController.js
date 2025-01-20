@@ -114,12 +114,57 @@ const getDataUri = require('../utils/dataUri');
 const { sendMail, emailFrom } = require('../utils/sendEmail');
 
 // Create a new company
+// exports.createCompany = async (req, res) => {
+//   try {
+//     const { companyName, category, url, email, address, tags, description, userId, userName } = req.body;
+
+//     if (!userId || !userName) {
+//       return res.status(400).json({ message: 'User information is required' });
+//     }
+
+//     if (!req.file) {
+//       return res.status(400).json({ message: 'Image is required' });
+//     }
+
+//     const fileUri = getDataUri(req.file);
+//     const result = await cloudinary.uploader.upload(fileUri.content);
+
+//     const tagsArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
+
+//     const newCompany = new Company({
+//       companyName,
+//       category,
+//       url,
+//       email,
+//       address,
+//       tags: tagsArray,
+//       description,
+//       imageUrl: result.secure_url,
+//       userId,
+//       userName,
+//       status: 'Pending'
+//     });
+
+//     await newCompany.save();
+//     res.status(201).json({ message: 'Company created successfully', company: newCompany });
+//   } catch (error) {
+//     console.error('Error creating company:', error);
+//     res.status(500).json({ message: 'Error creating company', error: error.message });
+//   }
+// };
 exports.createCompany = async (req, res) => {
   try {
-    const { companyName, category, url, email, address, tags, description, userId, userName } = req.body;
+    const { companyName, category, url, email, address, tags, description } = req.body;
+    let { userId, userName } = req.body;
 
+    // If userId and userName are not provided in the body, check if they're available in req.user
     if (!userId || !userName) {
-      return res.status(400).json({ message: 'User information is required' });
+      if (req.user) {
+        userId = req.user.id;
+        userName = req.user.name;
+      } else {
+        return res.status(400).json({ message: 'User information is required. Please ensure you are logged in.' });
+      }
     }
 
     if (!req.file) {
@@ -152,6 +197,7 @@ exports.createCompany = async (req, res) => {
     res.status(500).json({ message: 'Error creating company', error: error.message });
   }
 };
+
 
 // Get all companies
 exports.getCompanies = async (req, res) => {
